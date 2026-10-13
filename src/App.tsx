@@ -30,9 +30,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protección de rutas para admin (solo URL separada, sin verificación de rol)
+// Solo el perfil con rol admin puede abrir la ruta de administración.
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -44,6 +44,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -68,6 +72,12 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomeRoute() {
+  const { user, isAdmin } = useAuth();
+  if (user && isAdmin) return <Navigate to="/admin" replace />;
+  return <Home />;
+}
+
 function App() {
   // Mantener sesión activa
   useEffect(() => {
@@ -86,20 +96,24 @@ function App() {
           <Routes>
             {/* Rutas públicas */}
             <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
-              <Route path="login" element={<AuthLayout />}>
-                <Route index element={<GuestRoute><Login /></GuestRoute>} />
-              </Route>
-              <Route path="register" element={<AuthLayout />}>
-                <Route index element={<GuestRoute><Register /></GuestRoute>} />
-              </Route>
+              <Route index element={<HomeRoute />} />
+            </Route>
+            <Route path="/login" element={<AuthLayout />}>
+              <Route index element={<GuestRoute><Login /></GuestRoute>} />
+            </Route>
+            <Route path="/register" element={<AuthLayout />}>
+              <Route index element={<GuestRoute><Register /></GuestRoute>} />
             </Route>
 
             {/* Rutas protegidas para practicantes */}
-            <Route path="/dashboard" element={<ProtectedRoute><Layout /><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+            </Route>
 
             {/* Rutas de admin */}
-            <Route path="/admin" element={<AdminRoute><AdminLayout /><Admin /></AdminRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+              <Route index element={<Admin />} />
+            </Route>
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

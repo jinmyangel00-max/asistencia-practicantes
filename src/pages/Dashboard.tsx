@@ -6,12 +6,13 @@ import { Card, CardBody, CardHeader, CardTitle, CardDescription } from '../compo
 import { Badge } from '../components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableContainer } from '../components/ui/Table';
 import { CheckCircle, Clock, Calendar, Sun, Moon, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { formatDate, formatTime, getCurrentDateInLima, getShiftLabel, getShiftStatus, getInstitutionLabel, getCycleLabel, cn } from '../lib/utils';
+import { formatDate, formatTime, getCurrentDateInLima, getShiftLabel, getShiftStatus, getCycleLabel, cn } from '../lib/utils';
 import { SHIFT_SCHEDULES } from '../lib/supabase';
+import { Navigate } from 'react-router-dom';
 
 export function Dashboard() {
-  const { profile } = useAuth();
-  const { checkIn, getMyAttendance, loading: attendanceLoading, currentShift } = useAttendance();
+  const { profile, profileError } = useAuth();
+  const { checkIn, getMyAttendance, loading: attendanceLoading, currentShift, attendanceActive } = useAttendance();
   const [myAttendance, setMyAttendance] = useState<Awaited<ReturnType<typeof getMyAttendance>>>([]);
   const [checkingIn, setCheckingIn] = useState<'morning' | 'afternoon' | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -20,6 +21,8 @@ export function Dashboard() {
   useEffect(() => {
     loadAttendance(selectedDate);
   }, [selectedDate]);
+
+  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
 
   const loadAttendance = async (date: string) => {
     const data = await getMyAttendance(date);
@@ -51,17 +54,29 @@ export function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mi Asistencia</h1>
-          <p className="text-gray-600">Registra tu entrada y revisa tu historial</p>
+          <p className="text-gray-600">
+            {profile ? `Hola, ${profile.full_name}. Registra tu entrada y revisa tu historial` : 'Registra tu entrada y revisa tu historial'}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant={profile?.shift === 'morning' ? 'morning' : 'afternoon'}>
-            Turno: {getShiftLabel(profile?.shift || 'morning')}
-          </Badge>
-          <Badge variant="default" className="bg-primary-100 text-primary-800">
-            {getInstitutionLabel(profile?.institution || 'UCV')} - {getCycleLabel(profile?.institution || 'UCV', profile?.cycle_or_semester || 1)}
-          </Badge>
-        </div>
+        {profile?.shift && profile.institution && profile.cycle_or_semester !== null ? (
+          <div className="flex items-center gap-3">
+            <Badge variant={profile.shift === 'morning' ? 'morning' : 'afternoon'}>
+              Turno: {getShiftLabel(profile.shift)}
+            </Badge>
+            <Badge variant="default" className="bg-primary-100 text-primary-800">
+              {profile.institution} - {getCycleLabel(profile.institution, profile.cycle_or_semester)}
+            </Badge>
+          </div>
+        ) : (
+          <Badge variant="warning">Perfil no disponible</Badge>
+        )}
       </div>
+
+      {!profile && profileError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          No se pudo cargar tu perfil: {profileError}
+        </div>
+      )}
 
       {/* Tarjeta de check-in rápido */}
       <Card>
@@ -125,7 +140,7 @@ export function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-gray-500 bg-gray-50 p-2 rounded">
                     <Clock className="h-4 w-4" />
-                    <span className="text-sm">Ventana cerrada o no disponible</span>
+                    <span className="text-sm">{attendanceActive ? 'Ventana cerrada o no disponible' : 'El administrador aún no inicia las asistencias'}</span>
                   </div>
                   <Button variant="outline" className="w-full" disabled>
                     No disponible
@@ -186,7 +201,7 @@ export function Dashboard() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-gray-500 bg-gray-50 p-2 rounded">
                     <Clock className="h-4 w-4" />
-                    <span className="text-sm">Ventana cerrada o no disponible</span>
+                    <span className="text-sm">{attendanceActive ? 'Ventana cerrada o no disponible' : 'El administrador aún no inicia las asistencias'}</span>
                   </div>
                   <Button variant="outline" className="w-full" disabled>
                     No disponible
@@ -304,38 +319,74 @@ function WeeklySummary({ userId }: { userId?: string }) {
   const { getAttendanceByDateRange } = useAttendance();
   const [summary, setSummary] = useState<{ date: string; morning: boolean; afternoon: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
-    const end = getCurrentDateInLima();
-    const start = new Date(end);
-    start.setDate(start.getDate() - 6);
-    const startStr = start.toISOString().split('T')[0];
+    let active = true;
 
-    getAttendanceByDateRange(startStr, end).then(data => {
-      const grouped = data.reduce((acc, record) => {
-        if (!acc[record.date]) acc[record.date] = { morning: false, afternoon: false };
-        acc[record.date][record.shift] = true;
-        return acc;
-      }, {} as Record<string, { morning: boolean; afternoon: boolean }>);
+    const loadSummary = async () => {
+      setLoading(true);
+      setError(null);
 
-      const result = [];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(end);
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        result.push({
-          date: dateStr,
-          morning: grouped[dateStr]?.morning || false,
-          afternoon: grouped[dateStr]?.afternoon || false,
-        });
+      if (!userId) {
+        setSummary([]);
+        setLoading(false);
+        return;
       }
-      setSummary(result.reverse());
-      setLoading(false);
-    });
+
+      const end = getCurrentDateInLima();
+      const [year, month, day] = end.split('-').map(Number);
+      const endDate = new Date(Date.UTC(year, month - 1, day));
+      const startDate = new Date(endDate);
+      startDate.setUTCDate(startDate.getUTCDate() - 6);
+      const start = startDate.toISOString().slice(0, 10);
+
+      try {
+        const data = await getAttendanceByDateRange(start, end);
+        if (!active) return;
+
+        const grouped = data.reduce((acc, record) => {
+          if (!acc[record.date]) acc[record.date] = { morning: false, afternoon: false };
+          acc[record.date][record.shift] = true;
+          return acc;
+        }, {} as Record<string, { morning: boolean; afternoon: boolean }>);
+
+        const result = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(endDate);
+          date.setUTCDate(date.getUTCDate() - i);
+          const dateStr = date.toISOString().slice(0, 10);
+          result.push({
+            date: dateStr,
+            morning: grouped[dateStr]?.morning || false,
+            afternoon: grouped[dateStr]?.afternoon || false,
+          });
+        }
+        setSummary(data.length === 0 ? [] : result.reverse());
+      } catch (loadError) {
+        if (!active) return;
+        setSummary([]);
+        const message =
+          loadError instanceof Error
+            ? loadError.message
+            : typeof loadError === 'object' && loadError !== null && 'message' in loadError && typeof loadError.message === 'string'
+              ? loadError.message
+              : 'Error desconocido';
+        setError(message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadSummary();
+    return () => { active = false; };
   }, [userId, getAttendanceByDateRange]);
 
   if (loading) return <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-500 border-t-transparent" /></div>;
+
+  if (!userId) return <p className="py-4 text-center text-sm text-gray-500">El resumen estará disponible cuando se cargue tu perfil.</p>;
+  if (error) return <p className="py-4 text-center text-sm text-red-600" role="alert">No se pudo cargar el resumen semanal: {error}</p>;
+  if (summary.length === 0) return <p className="py-4 text-center text-sm text-gray-500">Aún no registras asistencias esta semana.</p>;
 
   return (
     <div className="overflow-x-auto">

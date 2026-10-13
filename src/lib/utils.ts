@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export function cn(...inputs: ClassValue[]) {
@@ -8,7 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: Date | string, pattern: string = 'dd/MM/yyyy'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string'
+    ? /^\d{4}-\d{2}-\d{2}$/.test(date) ? parseISO(date) : new Date(date)
+    : date;
   return format(d, pattern, { locale: es });
 }
 
@@ -39,16 +41,19 @@ export function getCurrentTimeStringInLima(): string {
 }
 
 export function getCurrentShift(): 'morning' | 'afternoon' | null {
+  const limaDate = getCurrentDateInLima();
+  const weekday = new Date(`${limaDate}T00:00:00Z`).getUTCDay();
+  if (weekday === 0 || weekday === 6) return null;
+
   const now = getCurrentTimeInLima();
   const hour = now.getHours();
   const minute = now.getMinutes();
   const totalMinutes = hour * 60 + minute;
 
-  // Mañana: 8:00 (480) - 8:15 (495)
+  // Ventanas de registro: mañana 08:00-08:15 y tarde 12:00-12:30.
   if (totalMinutes >= 480 && totalMinutes <= 495) {
     return 'morning';
   }
-  // Tarde: 12:00 (720) - 12:30 (750)
   if (totalMinutes >= 720 && totalMinutes <= 750) {
     return 'afternoon';
   }

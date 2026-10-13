@@ -1,18 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useAttendance } from '../context/AttendanceContext';
+import { supabase } from '../lib/supabase';
+import type { Profile } from '../lib/supabase';
 import { Card, CardBody, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableContainer } from '../components/ui/Table';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
-import { Calendar, Search, Download, Users, Sun, Moon, CheckCircle, AlertCircle, FileText } from 'lucide-react';
-import { formatDate, formatTime, getCurrentDateInLima, getShiftLabel, getInstitutionLabel, getCycleLabel, cn } from '../lib/utils';
+import { Calendar, Search, Download, Users, Sun, Moon, CheckCircle, AlertCircle, FileText, Play, Square, UserX, Clock } from 'lucide-react';
+import { formatDate, formatTime, getCurrentDateInLima, getCurrentTimeStringInLima, getShiftLabel, getInstitutionLabel, getCycleLabel, cn } from '../lib/utils';
 import type { AttendanceWithProfile } from '../lib/supabase';
 
+interface AttendancePeriod {
+  id: string;
+  starts_on: string;
+  ends_on: string | null;
+  started_at: string;
+  ended_at: string | null;
+}
+
+type RosterStatus = 'Asistió' | 'Tardanza' | 'Falta' | 'Pendiente' | 'No hay clases' | 'Periodo no activo' | 'Turno sin configurar';
+
 export function Admin() {
-  const { getAllAttendance, getAttendanceByDateRange } = useAttendance();
+  const { getAllAttendance, getAttendanceByDateRange, refreshControlStatus } = useAttendance();
   const [attendance, setAttendance] = useState<AttendanceWithProfile[]>([]);
+  const [practitioners, setPractitioners] = useState<Profile[]>([]);
+  const [periods, setPeriods] = useState<AttendancePeriod[]>([]);
+  const [controlLoading, setControlLoading] = useState(true);
+  const [controlBusy, setControlBusy] = useState(false);
+  const [controlMessage, setControlMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState(getCurrentDateInLima());
   const [institutionFilter, setInstitutionFilter] = useState<'all' | 'UCV' | 'SENATI'>('all');
@@ -26,6 +43,53 @@ export function Admin() {
   useEffect(() => {
     loadAttendance();
   }, [dateFilter, dateRange, viewMode]);
+
+  useEffect(() => {
+    void loadControlData();
+  }, []);
+
+  const loadControlData = async () => {
+    setControlLoading(true);
+    const [profileResult, periodResult] = await Promise.all([
+      supabase.from('profiles').select('*').eq('role', 'practicante').order('full_name'),
+      supabase.from('attendance_periods').select('*').order('started_at', { ascending: false }),
+    ]);
+    if (profileResult.error || periodResult.error) {
+      setControlMessage(profileResult.error?.message || periodResult.error?.message || 'No se pudo cargar el panel de control.');
+      setControlLoading(false);
+      return;
+    }
+    setPractitioners((profileResult.data || []) as Profile[]);
+    setPeriods((periodResult.data || []) as AttendancePeriod[]);
+    setControlLoading(false);
+  };
+
+  const handleStartPeriod = async () => {
+    setControlBusy(true);
+    setControlMessage('');
+    const { error } = await supabase.rpc('start_attendance_period');
+    if (error) {
+      setControlMessage(error.message);
+    } else {
+      setControlMessage('Asistencias iniciadas. Los practicantes ya pueden registrar dentro de sus horarios.');
+      await Promise.all([loadControlData(), refreshControlStatus()]);
+    }
+    setControlBusy(false);
+  };
+
+  const handleStopPeriod = async () => {
+    if (!window.confirm('¿Terminar el periodo de asistencias? Los practicantes ya no podrán registrar entradas.')) return;
+    setControlBusy(true);
+    setControlMessage('');
+    const { error } = await supabase.rpc('stop_attendance_period');
+    if (error) {
+      setControlMessage(error.message);
+    } else {
+      setControlMessage('Periodo terminado. Se conservaron todos los registros y se bloqueó el check-in.');
+      await Promise.all([loadControlData(), refreshControlStatus()]);
+    }
+    setControlBusy(false);
+  };
 
   const loadAttendance = async () => {
     setLoading(true);
@@ -68,6 +132,30 @@ export function Admin() {
     return true;
   });
 
+  const activePeriod = periods.find(period => period.ended_at === null);
+  const rosterStatus = (profile: Profile): RosterStatus => {
+    if (loading) return 'Pendiente';
+    if (!profile.shift) return 'Turno sin configurar';
+    const weekday = new Date(`${dateFilter}T00:00:00Z`).getUTCDay();
+    if (weekday === 0 || weekday === 6) return 'No hay clases';
+    const period = periods.find(item => dateFilter >= item.starts_on && (!item.ends_on || dateFilter <= item.ends_on));
+    if (!period) return 'Periodo no activo';
+    const checkin = attendance.find(item => item.user_id === profile.id && item.shift === profile.shift);
+    if (checkin) return checkin.status === 'on_time' ? 'Asistió' : 'Tardanza';
+    if (dateFilter < getCurrentDateInLima()) return 'Falta';
+    if (dateFilter === getCurrentDateInLima()) {
+      const deadline = profile.shift === 'morning' ? '08:16:00' : '12:31:00';
+      const periodWasClosedToday = period.ended_at !== null && period.ends_on === dateFilter;
+      if (periodWasClosedToday || getCurrentTimeStringInLima() >= deadline) return 'Falta';
+    }
+    return 'Pendiente';
+  };
+  const rosterCounts = practitioners.reduce((counts, profile) => {
+    const status = rosterStatus(profile);
+    if (status === 'Asistió' || status === 'Tardanza' || status === 'Falta' || status === 'Pendiente') counts[status]++;
+    return counts;
+  }, { 'Asistió': 0, 'Tardanza': 0, 'Falta': 0, 'Pendiente': 0 });
+
   const handleExport = () => {
     const headers = ['Fecha', 'Nombre', 'Correo', 'Institución', 'Ciclo/Semestre', 'Turno', 'Hora Entrada', 'Estado'];
     const rows = filteredAttendance.map(record => [
@@ -105,6 +193,39 @@ export function Admin() {
         </Button>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary-600" />
+            Control del periodo de prácticas
+          </CardTitle>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Badge variant={activePeriod ? 'success' : 'warning'}>
+                {activePeriod ? 'Asistencias iniciadas' : 'Asistencias detenidas'}
+              </Badge>
+              <p className="mt-2 text-sm text-gray-600">
+                {activePeriod
+                  ? `Periodo iniciado el ${formatDate(activePeriod.starts_on)}. Los registros se aceptan de lunes a viernes en los horarios asignados.`
+                  : 'Inicia el periodo cuando comiencen las clases. Al terminarlo, se bloquearán nuevos registros.'}
+              </p>
+            </div>
+            {activePeriod ? (
+              <Button variant="danger" onClick={handleStopPeriod} loading={controlBusy} disabled={controlLoading} icon={<Square className="h-4 w-4" />}>
+                Terminar asistencias
+              </Button>
+            ) : (
+              <Button onClick={handleStartPeriod} loading={controlBusy} disabled={controlLoading} icon={<Play className="h-4 w-4" />}>
+                Iniciar asistencias
+              </Button>
+            )}
+          </div>
+          {controlMessage && <p className="text-sm text-primary-700" role="status">{controlMessage}</p>}
+        </CardBody>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard title="Total" value={stats.total} icon={Users} color="primary" />
@@ -113,6 +234,54 @@ export function Admin() {
         <StatCard title="A tiempo" value={stats.onTime} icon={CheckCircle} color="green" />
         <StatCard title="Tardanzas" value={stats.late} icon={AlertCircle} color="red" />
       </div>
+
+      {viewMode === 'day' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex flex-wrap items-center gap-3">
+              <UserX className="h-5 w-5 text-primary-600" />
+              Asistencia y faltas del {formatDate(dateFilter)}
+              <span className="text-sm font-normal text-gray-500">
+                {rosterCounts['Falta']} faltas · {rosterCounts['Asistió'] + rosterCounts['Tardanza']} asistencias · {rosterCounts['Pendiente']} pendientes
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardBody className="p-0">
+            {practitioners.length === 0 ? (
+              <p className="px-6 py-8 text-center text-gray-500">Aún no hay practicantes registrados.</p>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Practicante</TableHead>
+                      <TableHead>Institución</TableHead>
+                      <TableHead>Turno</TableHead>
+                      <TableHead>Estado del día</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {practitioners.map(profile => {
+                      const status = rosterStatus(profile);
+                      const statusVariant = status === 'Falta' ? 'danger' : status === 'Asistió' ? 'success' : status === 'Tardanza' ? 'warning' : 'default';
+                      return (
+                        <TableRow key={profile.id}>
+                          <TableCell className="font-medium">{profile.full_name}</TableCell>
+                          <TableCell>{profile.institution || '—'}{profile.cycle_or_semester ? ` · ${getCycleLabel(profile.institution!, profile.cycle_or_semester)}` : ''}</TableCell>
+                          <TableCell>{profile.shift ? getShiftLabel(profile.shift) : '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariant}>{status === 'Pendiente' && <Clock className="mr-1 inline h-3 w-3" />}{status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Filtros */}
       <Card>

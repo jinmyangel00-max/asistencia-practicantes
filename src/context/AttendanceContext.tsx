@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Attendance, AttendanceWithProfile } from '../lib/supabase';
-import { getCurrentDateInLima, getCurrentTimeStringInLima, getShiftStatus, getCurrentShift } from '../lib/utils';
+import { getCurrentShift } from '../lib/utils';
+import { useAuth } from './AuthContext';
 
 interface AttendanceContextType {
   checkIn: (shift: 'morning' | 'afternoon') => Promise<{ success: boolean; error?: string; attendance?: Attendance }>;
@@ -12,17 +13,45 @@ interface AttendanceContextType {
   loading: boolean;
   currentShift: 'morning' | 'afternoon' | null;
   canCheckIn: (shift: 'morning' | 'afternoon') => boolean;
+  attendanceActive: boolean;
+  refreshControlStatus: () => Promise<void>;
 }
 
 const AttendanceContext = createContext<AttendanceContextType | null>(null);
 
 export function AttendanceProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [currentShift] = useState<'morning' | 'afternoon' | null>(getCurrentShift());
+  const [attendanceActive, setAttendanceActive] = useState(false);
+  const [currentShift, setCurrentShift] = useState<'morning' | 'afternoon' | null>(getCurrentShift());
+
+  const refreshControlStatus = useCallback(async () => {
+    if (!user) {
+      setAttendanceActive(false);
+      return;
+    }
+    const { data, error } = await supabase.rpc('attendance_period_status');
+    if (error) {
+      console.error('Error loading attendance period status:', error);
+      setAttendanceActive(false);
+      return;
+    }
+    const status = Array.isArray(data) ? data[0] : data;
+    setAttendanceActive(Boolean(status?.is_active));
+  }, [user]);
+
+  useEffect(() => {
+    void refreshControlStatus();
+    const interval = window.setInterval(() => {
+      setCurrentShift(getCurrentShift());
+      void refreshControlStatus();
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [refreshControlStatus]);
 
   const canCheckIn = useCallback((shift: 'morning' | 'afternoon') => {
-    return currentShift === shift;
-  }, [currentShift]);
+    return attendanceActive && currentShift === shift;
+  }, [attendanceActive, currentShift]);
 
   const checkIn = async (shift: 'morning' | 'afternoon') => {
     setLoading(true);
@@ -30,33 +59,11 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
 
-      const today = getCurrentDateInLima();
-      const now = getCurrentTimeStringInLima();
-
-      // Verificar si ya registró asistencia hoy para este turno
-      const { data: existing } = await supabase
-        .from('attendance')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .eq('shift', shift)
-        .maybeSingle();
-
-      if (existing) {
-        return { success: false, error: `Ya registraste tu asistencia para el turno de ${shift === 'morning' ? 'mañana' : 'tarde'} hoy` };
-      }
-
-      // Determinar si llegó a tiempo
-      const status = getShiftStatus(now, shift);
-
       const { data, error } = await supabase
         .from('attendance')
         .insert({
           user_id: user.id,
-          date: today,
-          check_in_time: now,
           shift,
-          status,
         })
         .select()
         .single();
@@ -128,8 +135,10 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
         getAllAttendance,
         getAttendanceByDateRange,
         loading,
-        currentShift,
+        currentShift: attendanceActive ? currentShift : null,
         canCheckIn,
+        attendanceActive,
+        refreshControlStatus,
       }}
     >
       {children}

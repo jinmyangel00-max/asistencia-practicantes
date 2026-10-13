@@ -1,8 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// TODO: Reemplazar con tus credenciales reales de Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tu-proyecto.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'tu-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const missingSupabaseVariables = [
+  !supabaseUrl && 'VITE_SUPABASE_URL',
+  !supabaseAnonKey && 'VITE_SUPABASE_ANON_KEY',
+].filter(Boolean);
+
+if (missingSupabaseVariables.length > 0) {
+  throw new Error(
+    `Falta ${missingSupabaseVariables.join(' y ')}. Define esa variable en el archivo .env y reinicia Vite.`
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -13,9 +23,9 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  institution: 'UCV' | 'SENATI';
-  cycle_or_semester: number; // 1-10 para UCV, 1-6 para SENATI
-  shift: 'morning' | 'afternoon';
+  institution: 'UCV' | 'SENATI' | null;
+  cycle_or_semester: number | null; // 1-10 para UCV, 1-6 para SENATI; null para admin
+  shift: 'morning' | 'afternoon' | null;
   role: UserRole;
   created_at: string;
   updated_at: string;

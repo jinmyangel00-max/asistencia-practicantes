@@ -40,7 +40,7 @@ npm run dev
 ## ⚙️ Configuración de Supabase
 
 1. **Crear proyecto** en [supabase.com](https://supabase.com)
-2. **Ejecutar esquema SQL**: Copia el contenido de `supabase-schema.sql` en el SQL Editor de Supabase
+2. **Ejecutar esquema SQL**: En un proyecto nuevo, copia `supabase-schema.sql` en el SQL Editor de Supabase. Para actualizar un proyecto existente, aplica la migración `supabase-migration-security.sql`.
 3. **Configurar Auth**:
    - Authentication > Settings > Email Auth
    - Site URL: `http://localhost:5173` (dev)
@@ -77,6 +77,8 @@ npm run dev
 - Usuarios ven solo sus datos
 - Admins (role='admin') ven todo
 - Políticas automáticas via triggers
+- El rol no se puede cambiar desde la sesión del propio usuario; el alta siempre crea practicantes
+- La base de datos asigna fecha, hora y estado del check-in usando la hora de Perú y verifica el turno del perfil
 
 ## 🎨 Paleta de Colores
 
@@ -104,7 +106,7 @@ npm run dev
 
 1. **Registro**: Completa nombre, email, contraseña, institución, ciclo/semestre, turno
 2. **Login**: Accede con credenciales
-3. **Dashboard**: Ve horarios disponibles, registra entrada (solo en ventana horaria)
+3. **Dashboard**: Ve horarios disponibles y registra entrada; después de la hora límite, el sistema la marca como tardanza
 4. **Historial**: Revisa asistencias pasadas y resumen semanal
 
 ## 👨‍💼 Panel Admin (`/admin`)

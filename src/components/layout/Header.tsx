@@ -10,10 +10,9 @@ export function Header() {
   const { user, profile, signOut, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navLinks = [
-    { path: '/dashboard', label: 'Mi Asistencia', icon: User },
-    ...(isAdmin ? [{ path: '/admin', label: 'Panel Admin', icon: Shield }] : []),
-  ];
+  const navLinks = isAdmin
+    ? [{ path: '/admin', label: 'Panel Admin', icon: Shield }]
+    : [{ path: '/dashboard', label: 'Mi Asistencia', icon: User }];
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -54,14 +53,14 @@ export function Header() {
           <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-4">
-                <div className="hidden sm:flex sm:items-center sm:gap-2">
-                  <Badge variant={profile?.shift === 'morning' ? 'morning' : 'afternoon'}>
-                    {profile?.shift === 'morning' ? 'Mañana' : 'Tarde'}
-                  </Badge>
+                {profile && <div className="hidden sm:flex sm:items-center sm:gap-2">
+                  {profile.shift && <Badge variant={profile.shift === 'morning' ? 'morning' : 'afternoon'}>
+                    {profile.shift === 'morning' ? 'Mañana' : 'Tarde'}
+                  </Badge>}
                   <span className="text-sm font-medium text-gray-700">
                     {profile?.full_name}
                   </span>
-                </div>
+                </div>}
                 <Button variant="ghost" size="sm" onClick={signOut} aria-label="Cerrar sesión">
                   <LogOut className="h-4 w-4" aria-hidden="true" />
                   <span className="hidden sm:inline">Salir</span>
