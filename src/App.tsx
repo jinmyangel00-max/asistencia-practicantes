@@ -9,7 +9,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { useAuth } from './context/AuthContext';
 import { useEffect } from 'react';
-import { supabase } from './lib/supabase';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 // Protección de rutas para usuarios autenticados
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -81,6 +81,8 @@ function HomeRoute() {
 function App() {
   // Mantener sesión activa
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'TOKEN_REFRESHED') {
         console.log('Token refrescado');
@@ -88,6 +90,20 @@ function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-50 px-6">
+        <section className="max-w-lg rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-gray-900">Falta configurar Supabase</h1>
+          <p className="mt-3 text-gray-600">
+            Añade <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_ANON_KEY</code> en las variables
+            de entorno de Vercel y vuelve a desplegar la aplicación.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <BrowserRouter>

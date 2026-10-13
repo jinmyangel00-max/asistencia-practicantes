@@ -3,18 +3,26 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const missingSupabaseVariables = [
-  !supabaseUrl && 'VITE_SUPABASE_URL',
-  !supabaseAnonKey && 'VITE_SUPABASE_ANON_KEY',
-].filter(Boolean);
+function isValidSupabaseUrl(value: string | undefined): value is string {
+  if (!value || value.includes('TU-PROJECT-REF')) return false;
 
-if (missingSupabaseVariables.length > 0) {
-  throw new Error(
-    `Falta ${missingSupabaseVariables.join(' y ')}. Define esa variable en el archivo .env y reinicia Vite.`
-  );
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const isSupabaseConfigured =
+  isValidSupabaseUrl(supabaseUrl) &&
+  Boolean(supabaseAnonKey && supabaseAnonKey !== 'TU_CLAVE_PUBLICA');
+
+// App muestra un mensaje de configuración antes de montar componentes que usen el cliente.
+export const supabase = createClient(
+  isValidSupabaseUrl(supabaseUrl) ? supabaseUrl : 'https://configuracion-pendiente.supabase.co',
+  supabaseAnonKey || 'configuracion-pendiente',
+);
 
 // Tipos para TypeScript
 export type UserRole = 'practicante' | 'admin';
