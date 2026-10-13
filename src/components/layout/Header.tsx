@@ -15,7 +15,7 @@ export function Header() {
     : [{ path: '/dashboard', label: 'Mi Asistencia', icon: User }];
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <header className="sticky top-0 z-40 border-b border-white/70 bg-white/80 shadow-sm shadow-primary-900/5 backdrop-blur-xl">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Navegación principal">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}

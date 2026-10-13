@@ -9,9 +9,9 @@ export function Home() {
   return (
     <div className="w-full">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-primary-50 via-white to-gray-50 py-20 lg:py-32">
+      <section className="relative isolate overflow-hidden bg-gradient-to-b from-primary-50/90 via-white/80 to-gray-50/70 py-20 lg:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto max-w-3xl text-center page-enter">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold-100 text-gold-800 text-sm font-medium mb-6">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-400 opacity-75"></span>
@@ -53,8 +53,8 @@ export function Home() {
 
         {/* Decorative elements */}
         <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-          <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-primary-100/50 blur-3xl" />
-          <div className="absolute bottom-20 right-10 h-72 w-72 rounded-full bg-gold-100/50 blur-3xl" />
+          <div className="ambient-orb absolute top-20 left-10 h-72 w-72 rounded-full bg-primary-200/60 blur-3xl" />
+          <div className="ambient-orb absolute bottom-20 right-10 h-72 w-72 rounded-full bg-gold-200/60 blur-3xl" />
         </div>
       </section>
 
@@ -212,9 +212,9 @@ function FeatureCard({ icon: Icon, title, description, color }: { icon: React.Co
   };
 
   return (
-    <Card className="h-full transition-shadow hover:shadow-lg">
+    <Card className="group h-full">
       <CardBody className="p-6">
-        <div className={cn('inline-flex h-12 w-12 items-center justify-center rounded-xl mb-4', colors[color as keyof typeof colors])}>
+        <div className={cn('interactive-icon inline-flex h-12 w-12 items-center justify-center rounded-xl mb-4', colors[color as keyof typeof colors])}>
           <Icon className="h-6 w-6" />
         </div>
         <CardTitle>{title}</CardTitle>

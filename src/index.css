@@ -31,8 +31,11 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-slate-50 text-gray-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    background-image: radial-gradient(ellipse at 12% 0%, rgb(219 234 254 / 0.55), transparent 34rem),
+      radial-gradient(ellipse at 90% 12%, rgb(254 243 199 / 0.32), transparent 30rem);
+    background-attachment: fixed;
   }
 
   * {
@@ -45,19 +48,19 @@
     @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white
       bg-primary-800 hover:bg-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
       rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-      shadow-sm hover:shadow-md;
+      shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97];
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-primary-800
       bg-gold-100 hover:bg-gold-200 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2
-      rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+      rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-outline {
     @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-primary-800
       border-2 border-primary-800 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-      rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+      rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .input-field {
@@ -72,8 +75,9 @@
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden
-      hover:shadow-md transition-shadow duration-200;
+    @apply bg-white/90 rounded-xl shadow-sm border border-white overflow-hidden
+      hover:shadow-xl hover:shadow-primary-900/10 hover:-translate-y-1 transition-all duration-300;
+    backdrop-filter: blur(12px);
   }
 
   .card-header {
@@ -125,7 +129,7 @@
   }
 
   .table tbody tr {
-    @apply bg-white hover:bg-gray-50 transition-colors;
+    @apply bg-white hover:bg-primary-50/70 transition-colors duration-200;
   }
 
   .table tbody tr:nth-child(even) {
@@ -149,6 +153,22 @@
   .animate-pulse-soft {
     animation: pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  .page-enter {
+    animation: pageEnter 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .ambient-orb {
+    animation: orbFloat 12s ease-in-out infinite alternate;
+  }
+
+  .interactive-icon {
+    transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .group:hover .interactive-icon {
+    transform: translateY(-3px) rotate(-5deg) scale(1.08);
+  }
 }
 
 @keyframes slideIn {
@@ -170,6 +190,25 @@
 @keyframes pulseSoft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes orbFloat {
+  from { transform: translate3d(-10px, -8px, 0) scale(0.96); }
+  to { transform: translate3d(14px, 12px, 0) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Scrollbar personalizada */
