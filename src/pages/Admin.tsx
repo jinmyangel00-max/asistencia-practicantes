@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAttendance } from '../context/AttendanceContext';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../lib/supabase';
@@ -40,15 +40,7 @@ export function Admin() {
   const [viewMode, setViewMode] = useState<'day' | 'range'>('day');
   const [stats, setStats] = useState({ total: 0, morning: 0, afternoon: 0, onTime: 0, late: 0 });
 
-  useEffect(() => {
-    loadAttendance();
-  }, [dateFilter, dateRange, viewMode]);
-
-  useEffect(() => {
-    void loadControlData();
-  }, []);
-
-  const loadControlData = async () => {
+  const loadControlData = useCallback(async () => {
     setControlLoading(true);
     const [profileResult, periodResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('role', 'practicante').order('full_name'),
@@ -62,7 +54,40 @@ export function Admin() {
     setPractitioners((profileResult.data || []) as Profile[]);
     setPeriods((periodResult.data || []) as AttendancePeriod[]);
     setControlLoading(false);
-  };
+  }, []);
+
+  const loadAttendance = useCallback(async () => {
+    setLoading(true);
+    try {
+      let data: AttendanceWithProfile[];
+      if (viewMode === 'range' && dateRange) {
+        data = await getAttendanceByDateRange(dateRange.start, dateRange.end);
+      } else {
+        data = await getAllAttendance(dateFilter);
+      }
+      setAttendance(data);
+      setStats({
+        total: data.length,
+        morning: data.filter(a => a.shift === 'morning').length,
+        afternoon: data.filter(a => a.shift === 'afternoon').length,
+        onTime: data.filter(a => a.status === 'on_time').length,
+        late: data.filter(a => a.status === 'late').length,
+      });
+    } catch (error) {
+      console.error('Error loading attendance:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [viewMode, dateRange, dateFilter, getAllAttendance, getAttendanceByDateRange]);
+
+  // Se difiere la carga para no provocar un render sincrónico extra al montar.
+  useEffect(() => {
+    queueMicrotask(() => void loadAttendance());
+  }, [loadAttendance]);
+
+  useEffect(() => {
+    queueMicrotask(() => void loadControlData());
+  }, [loadControlData]);
 
   const handleStartPeriod = async () => {
     setControlBusy(true);
@@ -89,34 +114,6 @@ export function Admin() {
       await Promise.all([loadControlData(), refreshControlStatus()]);
     }
     setControlBusy(false);
-  };
-
-  const loadAttendance = async () => {
-    setLoading(true);
-    try {
-      let data: AttendanceWithProfile[];
-      if (viewMode === 'range' && dateRange) {
-        data = await getAttendanceByDateRange(dateRange.start, dateRange.end);
-      } else {
-        data = await getAllAttendance(dateFilter);
-      }
-      setAttendance(data);
-      calculateStats(data);
-    } catch (error) {
-      console.error('Error loading attendance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateStats = (data: AttendanceWithProfile[]) => {
-    setStats({
-      total: data.length,
-      morning: data.filter(a => a.shift === 'morning').length,
-      afternoon: data.filter(a => a.shift === 'afternoon').length,
-      onTime: data.filter(a => a.status === 'on_time').length,
-      late: data.filter(a => a.status === 'late').length,
-    });
   };
 
   const filteredAttendance = attendance.filter(record => {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../lib/supabase';
@@ -25,39 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Obtener sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // No hacer llamadas asíncronas a Supabase dentro de este callback:
-        // Auth mantiene un bloqueo mientras se ejecuta y la consulta del perfil
-        // podría quedar esperando ese mismo bloqueo.
-        const userId = session.user.id;
-        window.setTimeout(() => {
-          void fetchProfile(userId);
-        }, 0);
-      } else {
-        setProfile(null);
-        setProfileError(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     setLoading(true);
     setProfile(null);
     setProfileError(null);
@@ -83,7 +51,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Obtener sesión inicial
+    let cancelled = false;
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        void fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        // No hacer llamadas asíncronas a Supabase dentro de este callback:
+        // Auth mantiene un bloqueo mientras se ejecuta y la consulta del perfil
+        // podría quedar esperando ese mismo bloqueo.
+        const userId = session.user.id;
+        window.setTimeout(() => {
+          void fetchProfile(userId);
+        }, 0);
+      } else {
+        setProfile(null);
+        setProfileError(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, profileData: Partial<Profile>, adminRegistrationCode?: string) => {
     const normalizedEmail = email.trim().toLowerCase();

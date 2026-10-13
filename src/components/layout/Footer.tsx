@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const [currentYear] = useState(() => new Date().getFullYear());
 
   return (
     <footer className="bg-primary-950 text-white border-t border-primary-800">

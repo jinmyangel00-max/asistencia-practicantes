@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Attendance, AttendanceWithProfile } from '../lib/supabase';
-import { getCurrentShift } from '../lib/utils';
+import { getCurrentShift, getCurrentDateInLima } from '../lib/utils';
 import { useAuth } from './AuthContext';
 
 interface AttendanceContextType {
@@ -41,7 +41,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    void refreshControlStatus();
+    // Se ejecuta fuera del cuerpo del efecto para no disparar un render
+    // sincrónico adicional al montar.
+    queueMicrotask(() => void refreshControlStatus());
     const interval = window.setInterval(() => {
       setCurrentShift(getCurrentShift());
       void refreshControlStatus();
@@ -53,7 +55,7 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     return attendanceActive && currentShift === shift;
   }, [attendanceActive, currentShift]);
 
-  const checkIn = async (shift: 'morning' | 'afternoon') => {
+  const checkIn = useCallback(async (shift: 'morning' | 'afternoon') => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -76,9 +78,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const getMyAttendance = async (date?: string) => {
+  const getMyAttendance = useCallback(async (date?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
@@ -93,9 +95,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
     return data || [];
-  };
+  }, []);
 
-  const getAllAttendance = async (date?: string) => {
+  const getAllAttendance = useCallback(async (date?: string) => {
     const targetDate = date || getCurrentDateInLima();
 
     const { data, error } = await supabase
@@ -109,9 +111,9 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
     return (data || []) as AttendanceWithProfile[];
-  };
+  }, []);
 
-  const getAttendanceByDateRange = async (startDate: string, endDate: string) => {
+  const getAttendanceByDateRange = useCallback(async (startDate: string, endDate: string) => {
     const { data, error } = await supabase
       .from('attendance')
       .select(`
@@ -125,22 +127,32 @@ export function AttendanceProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
     return (data || []) as AttendanceWithProfile[];
-  };
+  }, []);
+
+  const value = useMemo<AttendanceContextType>(() => ({
+    checkIn,
+    getMyAttendance,
+    getAllAttendance,
+    getAttendanceByDateRange,
+    loading,
+    currentShift: attendanceActive ? currentShift : null,
+    canCheckIn,
+    attendanceActive,
+    refreshControlStatus,
+  }), [
+    checkIn,
+    getMyAttendance,
+    getAllAttendance,
+    getAttendanceByDateRange,
+    loading,
+    currentShift,
+    canCheckIn,
+    attendanceActive,
+    refreshControlStatus,
+  ]);
 
   return (
-    <AttendanceContext.Provider
-      value={{
-        checkIn,
-        getMyAttendance,
-        getAllAttendance,
-        getAttendanceByDateRange,
-        loading,
-        currentShift: attendanceActive ? currentShift : null,
-        canCheckIn,
-        attendanceActive,
-        refreshControlStatus,
-      }}
-    >
+    <AttendanceContext.Provider value={value}>
       {children}
     </AttendanceContext.Provider>
   );

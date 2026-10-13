@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader, Sparkles, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Loader, Sparkles } from 'lucide-react';
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, staggerChildren: 0.1 } }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } }
 };
+
+const MotionButton = motion.create(Button);
 
 export function Login() {
   const navigate = useNavigate();
@@ -170,7 +173,7 @@ export function Login() {
                         disabled={loading}
                         icon={<Lock className="h-5 w-5 text-gray-400" />}
                       />
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -178,7 +181,7 @@ export function Login() {
                         whileTap={{ scale: 0.9 }}
                       >
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
+                      </motion.button>
                     </div>
                   </motion.div>
 
@@ -195,16 +198,17 @@ export function Login() {
                     </Link>
                   </motion.div>
 
-                  <motion.button
+                  <MotionButton
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
+                    className="w-full"
+                    size="lg"
+                    loading={loading}
                     disabled={loading}
                   >
-                    <Button type="submit" className="w-full" size="lg" loading={loading}>
-                      Iniciar sesión
-                    </Button>
-                  </motion.button>
+                    Iniciar sesión
+                  </MotionButton>
                 </form>
 
                 <motion.div 

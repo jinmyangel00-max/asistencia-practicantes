@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -14,15 +15,17 @@ type Institution = 'UCV' | 'SENATI';
 type Shift = 'morning' | 'afternoon';
 type AccountRole = 'practicante' | 'admin';
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, staggerChildren: 0.1 } }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } }
 };
+
+const MotionButton = motion.create(Button);
 
 export function Register() {
   const { signUp, resendSignupConfirmation } = useAuth();
@@ -300,7 +303,7 @@ export function Register() {
                         helperText="Mínimo 8 caracteres, 1 mayúscula, 1 número"
                         icon={<Lock className="h-5 w-5 text-gray-400" />}
                       />
-                      <button
+                      <motion.button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-600 transition-colors"
@@ -308,7 +311,7 @@ export function Register() {
                         whileTap={{ scale: 0.9 }}
                       >
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
+                      </motion.button>
                     </div>
                   </motion.div>
 
@@ -410,17 +413,17 @@ export function Register() {
                     </motion.div>
                   </>}
 
-                  <motion.button
+                  <MotionButton
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     className="w-full"
+                    size="lg"
+                    loading={loading}
                     disabled={loading}
                   >
-                    <Button size="lg" loading={loading} className="w-full">
-                      Crear cuenta
-                    </Button>
-                  </motion.button>
+                    Crear cuenta
+                  </MotionButton>
                 </form>
 
                 <motion.div 
@@ -527,11 +530,9 @@ export function Register() {
             </motion.p>
 
             <Link to="/login">
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button size="lg" className="w-full" iconRight={<Sparkles className="h-4 w-4" />}>
-                  Iniciar sesión ahora
-                </Button>
-              </motion.button>
+              <MotionButton whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} size="lg" className="w-full" iconRight={<Sparkles className="h-4 w-4" />}>
+                Iniciar sesión ahora
+              </MotionButton>
             </Link>
           </motion.div>
         )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../context/AttendanceContext';
 import { Button } from '../components/ui/Button';
@@ -18,16 +18,17 @@ export function Dashboard() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState(getCurrentDateInLima());
 
-  useEffect(() => {
-    loadAttendance(selectedDate);
-  }, [selectedDate]);
-
-  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
-
-  const loadAttendance = async (date: string) => {
+  const loadAttendance = useCallback(async (date: string) => {
     const data = await getMyAttendance(date);
     setMyAttendance(data);
-  };
+  }, [getMyAttendance]);
+
+  // Se difiere la carga para no provocar un render sincrónico extra al montar.
+  useEffect(() => {
+    queueMicrotask(() => void loadAttendance(selectedDate));
+  }, [selectedDate, loadAttendance]);
+
+  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
 
   const handleCheckIn = async (shift: 'morning' | 'afternoon') => {
     setCheckingIn(shift);
@@ -37,7 +38,7 @@ export function Dashboard() {
     
     if (result.success) {
       setMessage({ type: 'success', text: `✅ Asistencia registrada para turno de ${getShiftLabel(shift)} a las ${formatTime(result.attendance!.check_in_time)}` });
-      loadAttendance(selectedDate);
+      void loadAttendance(selectedDate);
     } else {
       setMessage({ type: 'error', text: result.error || 'Error al registrar asistencia' });
     }
