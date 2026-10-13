@@ -94,7 +94,7 @@ export function Login() {
           <motion.div key="login-form" initial="hidden" animate="visible" exit="exit" variants={itemVariants}>
             <Card className="overflow-hidden">
               <CardHeader className="relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary-800/5 via-transparent to-gold-500/5" />
+                <div className="absolute inset-0 bg-linear-to-r from-primary-800/5 via-transparent to-gold-500/5" />
                 <CardTitle className="relative">Acceso Practicante</CardTitle>
                 <CardDescription className="relative">Ingresa tus credenciales para continuar</CardDescription>
               </CardHeader>
@@ -107,7 +107,7 @@ export function Login() {
                       className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 text-sm border border-green-200"
                       role="status"
                     >
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 shrink-0" />
                       <span>¡Correo confirmado! Ahora inicia sesión.</span>
                     </motion.div>
                   )}
@@ -119,7 +119,7 @@ export function Login() {
                       className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200"
                       role="alert"
                     >
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      <AlertCircle className="h-5 w-5 shrink-0" />
                       <span>{error}</span>
                     </motion.div>
                   )}
@@ -141,7 +141,7 @@ export function Login() {
                       className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 text-sm border border-green-200"
                       role="status"
                     >
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 shrink-0" />
                       <span>{success}</span>
                     </motion.div>
                   )}
@@ -176,7 +176,7 @@ export function Login() {
                       <motion.button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-600 transition-colors"
+                        className="absolute right-3 top-9.5 text-gray-400 hover:text-gray-600 transition-colors"
                         aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         whileTap={{ scale: 0.9 }}
                       >
