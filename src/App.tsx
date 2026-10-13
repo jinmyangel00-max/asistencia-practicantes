@@ -2,14 +2,23 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AttendanceProvider } from './context/AttendanceContext';
 import { Layout, AuthLayout, AdminLayout } from './components/layout/Layout';
-import { Home } from './pages/Home';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { Dashboard } from './pages/Dashboard';
-import { Admin } from './pages/Admin';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
-import { useEffect } from 'react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+
+const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
+const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const Register = lazy(() => import('./pages/Register').then(module => ({ default: module.Register })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })));
+const Admin = lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="Cargando página">
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+    </div>
+  );
+}
 
 // Protección de rutas para usuarios autenticados
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -109,31 +118,33 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <AttendanceProvider>
-          <Routes>
-            {/* Rutas públicas */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomeRoute />} />
-            </Route>
-            <Route path="/login" element={<AuthLayout />}>
-              <Route index element={<GuestRoute><Login /></GuestRoute>} />
-            </Route>
-            <Route path="/register" element={<AuthLayout />}>
-              <Route index element={<GuestRoute><Register /></GuestRoute>} />
-            </Route>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Rutas públicas */}
+              <Route path="/" element={<Layout />}>
+                <Route index element={<HomeRoute />} />
+              </Route>
+              <Route path="/login" element={<AuthLayout />}>
+                <Route index element={<GuestRoute><Login /></GuestRoute>} />
+              </Route>
+              <Route path="/register" element={<AuthLayout />}>
+                <Route index element={<GuestRoute><Register /></GuestRoute>} />
+              </Route>
 
-            {/* Rutas protegidas para practicantes */}
-            <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
-            </Route>
+              {/* Rutas protegidas para practicantes */}
+              <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route index element={<Dashboard />} />
+              </Route>
 
-            {/* Rutas de admin */}
-            <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-              <Route index element={<Admin />} />
-            </Route>
+              {/* Rutas de admin */}
+              <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                <Route index element={<Admin />} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </AttendanceProvider>
       </AuthProvider>
     </BrowserRouter>

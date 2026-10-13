@@ -5,10 +5,12 @@ import { Button } from '../components/ui/Button';
 import { Card, CardBody, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableContainer } from '../components/ui/Table';
-import { CheckCircle, Clock, Calendar, Sun, Moon, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle, Clock, Calendar, Sun, Moon, CheckCircle2 } from 'lucide-react';
 import { formatDate, formatTime, getCurrentDateInLima, getShiftLabel, getShiftStatus, getCycleLabel, cn } from '../lib/utils';
 import { SHIFT_SCHEDULES } from '../lib/supabase';
 import { Navigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { FeedbackToast } from '../components/ui/FeedbackToast';
 
 export function Dashboard() {
   const { profile, profileError } = useAuth();
@@ -230,15 +232,16 @@ export function Dashboard() {
       </Card>
 
       {/* Mensajes de éxito/error */}
-      {message && (
-        <div className={cn(
-          'fixed bottom-4 right-4 z-50 animate-slide-in px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm',
-          message.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-        )} role="alert">
-          {message.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-          {message.text}
-        </div>
-      )}
+      <AnimatePresence>
+        {message && (
+          <FeedbackToast
+            type={message.type}
+            title={message.type === 'success' ? '¡Asistencia registrada!' : 'No se pudo registrar'}
+            message={message.text.replace(/^✅\s*/, '')}
+            onClose={() => setMessage(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Historial de asistencia */}
       <Card>

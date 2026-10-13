@@ -454,9 +454,27 @@ export function Register() {
             <motion.div 
               animate={{ scale: [1, 1.1, 1] }} 
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary-100 mb-6"
+              className="relative inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 mb-6"
             >
-              <Mail className="h-10 w-10 text-primary-600" />
+              <motion.span
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 16 }}
+                className="absolute -right-1 -top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-white shadow-md"
+              >
+                <CheckCircle className="h-4 w-4" />
+              </motion.span>
+              <Mail className="h-10 w-10 text-emerald-700" />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mx-auto mb-4 w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700"
+              role="status"
+            >
+              ¡Cuenta creada correctamente!
             </motion.div>
             
             <motion.h2 className="text-2xl font-bold text-gray-900 mb-3">
