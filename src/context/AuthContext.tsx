@@ -114,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: normalizedEmail,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
         data: {
           full_name: profileData.full_name,
           institution: profileData.institution,
